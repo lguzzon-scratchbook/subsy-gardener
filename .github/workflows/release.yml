@@ -1,0 +1,62 @@
+# Releases from conventional commits on main. release-please keeps a release PR open that
+# bumps package.json and CHANGELOG.md; merging it tags the version, creates the GitHub release
+# and publishes to npm through trusted publishing (OIDC), so no npm token is stored anywhere.
+# npm only accepts the publish from this file name: renaming it breaks the trusted publisher.
+#
+# If a publish fails, "Re-run failed jobs" retries it with the same tag. To publish any
+# release by hand, run this workflow from the Actions tab with its tag (e.g. v0.2.0).
+name: release
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish, e.g. v0.2.0
+        required: true
+concurrency: release
+jobs:
+  release-please:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          release-type: node
+
+  publish:
+    needs: release-please
+    # !cancelled() lets a manual run go ahead although the release-please job was skipped.
+    if: ${{ !cancelled() && (needs.release-please.outputs.release_created == 'true' || github.event_name == 'workflow_dispatch') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      # The tag, not the pushed commit: another merge can land before this run starts.
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || needs.release-please.outputs.tag_name }}
+          persist-credentials: false
+      # Trusted publishing needs npm 11.5.1+ and Node 22.14+; Node 24 ships a newer npm.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: git config --global user.email ci@example.com && git config --global user.name ci && npm test
+      # A retry of a release that already reached npm stops here instead of failing.
+      - run: |
+          version="$(node -p "require('./package.json').version")"
+          if npm view "repo-gardener@${version}" version >/dev/null 2>&1; then
+            echo "repo-gardener@${version} is already on npm"
+          else
+            npm publish
+          fi

@@ -42,6 +42,7 @@ that already exist. You can't tend what you can't see, and gardener is the seein
 - [Measures, exactly](#measures-exactly)
 - [Configuration](#configuration)
 - [How it works](#how-it-works)
+- [Releasing](#releasing)
 
 ## Quick start
 
@@ -435,6 +436,15 @@ Optional: `gardener.config.json` at the repository root. Lists extend the defaul
   takes a few minutes the first time and seconds after that.
 - **Private by default.** Nothing leaves your machine except the GitHub API calls you ask
   for with `--github`. Transcripts are read locally and only timings are kept.
+
+## Releasing
+
+Releases are automatic. Every merge to `main` updates a release PR that bumps the version
+from the conventional commit titles (`fix:` a patch, `feat:` a minor) and writes the
+changelog. Merging that PR tags the version, creates the GitHub release and publishes to npm
+from GitHub Actions, with provenance. If a publish fails, re-run the failed job, or run the
+`release` workflow from the Actions tab with the release's tag (such as `v0.2.0`). A version
+already on npm is skipped. See [`.github/workflows/release.yml`](.github/workflows/release.yml).
 
 ## Licence
 
