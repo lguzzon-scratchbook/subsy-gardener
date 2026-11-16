@@ -442,7 +442,9 @@ Optional: `gardener.config.json` at the repository root. Lists extend the defaul
 Releases are automatic. Every merge to `main` updates a release PR that bumps the version
 from the conventional commit titles (`fix:` a patch, `feat:` a minor) and writes the
 changelog. Merging that PR tags the version, creates the GitHub release and publishes to npm
-from GitHub Actions, with provenance. See [`.github/workflows/release.yml`](.github/workflows/release.yml).
+from GitHub Actions, with provenance. If a publish fails, re-run the failed job, or run the
+`release` workflow from the Actions tab with the release's tag (such as `v0.2.0`). A version
+already on npm is skipped. See [`.github/workflows/release.yml`](.github/workflows/release.yml).
 
 ## Licence
 
