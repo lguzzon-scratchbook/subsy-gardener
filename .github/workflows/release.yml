@@ -1,0 +1,34 @@
+# Releases from conventional commits on main. release-please keeps a release PR open that
+# bumps package.json and CHANGELOG.md; merging it tags the version, creates the GitHub release
+# and publishes to npm through trusted publishing (OIDC), so no npm token is stored anywhere.
+# npm only accepts the publish from this file name: renaming it breaks the trusted publisher.
+name: release
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
+concurrency: release
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          release-type: node
+      - if: ${{ steps.release.outputs.release_created }}
+        uses: actions/checkout@v5
+      # Trusted publishing needs npm 11.5.1+ and Node 22.14+; Node 24 ships a newer npm.
+      - if: ${{ steps.release.outputs.release_created }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - if: ${{ steps.release.outputs.release_created }}
+        run: git config --global user.email ci@example.com && git config --global user.name ci && npm test
+      - if: ${{ steps.release.outputs.release_created }}
+        run: npm publish
