@@ -168,6 +168,33 @@ export function logWindow(cwd, branch, since, until) {
   return commits.reverse();
 }
 
+const subjectMaps = new Map();
+
+/**
+ * Every first-parent commit on `branch` by title: Map(subject -> [{ sha, time }], newest
+ * first). A squash merge's ` (#123)` suffix is also stripped into its own key, because
+ * GitHub titles a revert PR after the original PR, which lacks it. Read once per branch per
+ * run, since a history run asks for it every week.
+ */
+export function firstParentSubjects(cwd, branch) {
+  const key = `${cwd}\0${branch}`;
+  if (!subjectMaps.has(key)) {
+    const map = new Map();
+    const out = git(cwd, ['log', '--first-parent', '--format=%H%x1f%ct%x1f%s', branch]);
+    for (const line of out.split('\n')) {
+      if (!line) continue;
+      const [sha, ct, subject] = line.split('\x1f');
+      const commit = { sha, time: Number(ct) };
+      for (const key of new Set([subject, subject.replace(/\s+\(#\d+\)$/, '')])) {
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push(commit);
+      }
+    }
+    subjectMaps.set(key, map);
+  }
+  return subjectMaps.get(key);
+}
+
 /**
  * Line ranges in `parent` that `sha` removed or rewrote, for files present on both sides.
  * Returns Map(path -> [[start, count]]).
